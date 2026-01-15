@@ -1,43 +1,35 @@
-import socket
-import threading
-
-HOST = '0.0.0.0'
-PORT = 9000
+import asyncio
+import websockets
 
 sender = None
 viewer = None
 
-def handle_sender(conn):
-    global viewer
-    while True:
-        data = conn.recv(4096)
-        if not data:
-            break
-        if viewer:
-            viewer.sendall(data)
+async def handler(ws):
+    global sender, viewer
 
-def handle_viewer(conn):
-    global sender
-    while True:
-        data = conn.recv(4096)
-        if not data:
-            break
-
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.bind((HOST, PORT))
-server.listen(2)
-
-print("Relay server started")
-
-while True:
-    conn, addr = server.accept()
-    role = conn.recv(10).decode()
+    role = await ws.recv()
 
     if role == "SENDER":
-        sender = conn
-        threading.Thread(target=handle_sender, args=(conn,)).start()
+        sender = ws
         print("Sender connected")
+        try:
+            async for msg in ws:
+                if viewer:
+                    await viewer.send(msg)
+        finally:
+            sender = None
 
     elif role == "VIEWER":
-        viewer = conn
+        viewer = ws
         print("Viewer connected")
+        try:
+            await ws.wait_closed()
+        finally:
+            viewer = None
+
+async def main():
+    async with websockets.serve(handler, "0.0.0.0", 10000):
+        await asyncio.Future()
+
+asyncio.run(main())
+
