@@ -1,5 +1,6 @@
 import asyncio
 import websockets
+import os
 
 sender = None
 viewer = None
@@ -28,8 +29,10 @@ async def handler(ws):
             viewer = None
 
 async def main():
-    async with websockets.serve(handler, "0.0.0.0", 10000):
+    port = int(os.environ.get("PORT", 10000))
+    async with websockets.serve(handler, "0.0.0.0", port):
         await asyncio.Future()
 
 asyncio.run(main())
+
 
